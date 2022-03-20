@@ -7,6 +7,11 @@ const createBlog = async function (req, res) {
     try {
 
         let data = req.body
+        if (data.isPublished != null) data.isPublished = false
+        if (data.publishedAt != null) data.publishedAt = ""
+        if (data.isDeleted != null) data.isDeleted = false
+        if (data.deletedAt != null) data.deletedAt = ""
+
 
         if (Object.keys(data).length != 0) {
 
@@ -90,32 +95,14 @@ const updateBlog = async function (req, res) {
     try {
         let data = req.body
         if (Object.keys(data).length != 0) {
-            // data.isPublished = true
-            // data.publishedAt = new Date()
 
-
-            // let id = req.params.blogId
-            // let check = await blogModel.findById(id)
-            //console.log(check)
-
-            // if (check.isDeleted == false) {
             let results = await blogModel.findOneAndUpdate(
                 { _id: req.blogId },
                 { $set: { title: data.title, body: data.body, category: data.category, isPublished: true }, $addToSet: { tags: data.tags, subCategory: data.subCategory }, $currentDate: { publishedAt: true } },
-                //data,
-                // { returnOriginal: false } or {new:true}
-                {new :true}
+
+                { new: true }
             )
             return res.status(200).send({ status: true, msg: results })
-
-
-
-            // } else {
-            //     res.status(404).send({ status: false, msg: "The post is already removed from the server" })
-            // }
-
-
-
 
         } else {
             res.status(404).send({ status: false, msg: "please provide content in the body" })
@@ -143,7 +130,7 @@ const deleteBlog = async function (req, res) {
         //     if (check.isDeleted == false) {
         let results = await blogModel.updateOne(
             { _id: req.blogId },
-            { $set: { isDeleted: true } }
+            { $set: { isDeleted: true }, $currentDate : {deletedAt : true} }
         )
         return res.status(200).send()
         //.send({status : true})
@@ -173,32 +160,56 @@ const deletecertainBlog = async function (req, res) {
         let { category, authorId, tags, subCategory, isPublished } = req.query
         let obj = {}
         if (category != null) obj.category = category
-        if (authorId != null) obj.authorId = authorId
+        // if (authorId != null && authorId ){
+        //     if(authorId == req.decodeToken.userId){
+        //         obj.authorId=authorId
+        //     }else{
+        //         return res.status(400).send({status : false , msg:"you are trying to delete someone else blog"})
+        //     }
+
+
+        // }
+
+
         if (tags != null) obj.tags = tags
         if (subCategory != null) obj.subCategory = subCategory
         if (isPublished != null) {
-            if (isPublished == true) {
-                res.status(400).send({ status: false, msg: "you are trying to delete already published blog" })
+            if (isPublished == "true") {
+                return res.status(400).send({ status: false, msg: "you are trying to delete already published blog" })
             } else {
                 obj.isPublished = false
 
             }
         }
 
-        obj.authorId=req.blogId
+        if (authorId != null) {
+            if (authorId != req.decodeToken.userId) {
+                res.status(400).send({ status: false, msg: "you are trying to access someone else blog" })
+            } else {
+                obj.authorId = req.decodeToken.authorId
 
-        //console.log(obj)
-        // here i have douts(wheteher all filters will be applied after check whther a given blog is published or not )
-        //if(isPublished != null) obj.isPublished=isPublished
+            }
+        } else {
+            if (Object.keys(obj).length > 0) {
+                obj.authorId = req.decodeToken.userId
+            }
+        }
 
-        // if (isPublished == true) {
-        //     res.status(404).send({ status: false, msg: "Cannot delete--- already published" })
-        // } 
 
-        if (Object.keys(obj).length != 0) {
+
+        console.log(typeof(obj.category))
+
+
+        //console.log(Object.keys(obj))
+        if (Object.keys(obj).length > 0) {
+            
+            //console.log(obj)
+            // let returnResult = await blogModel.find(obj).count()
+            // console.log(returnResult)
+
             let result = await blogModel.updateMany(
                 obj,
-                { $set: { isDeleted: true } }
+                { $set: { isDeleted: true }, $currentDate:{deletedAt:true} }
             )
             //console.log(result)
             if (result) {
@@ -232,7 +243,7 @@ const userLogin = async function (req, res) {
             let password = req.body.password
 
             const credentialCheck = await authorModel.findOne({ emailId: userName, password: password })
-            if (!credentialCheck) return res.status(404).send({ status: false, msg: "username or password is incorrect" })
+            if (!credentialCheck) return res.status(401).send({ status: false, msg: "username or password is incorrect" })
 
             let token = jwt.sign(
                 { userId: credentialCheck._id.toString() },
@@ -240,7 +251,7 @@ const userLogin = async function (req, res) {
             )
 
             res.setHeader("user-auth-token", token)
-            res.status(201).send({ status: true, data: token })
+            res.status(200).send({ status: true, data: token })
         }
         else res.status(400).send({ status: false, msg: "username or password is missing" })
 

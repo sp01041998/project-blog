@@ -8,12 +8,12 @@ let authenticate = async function (req, res, next) {
 
         if (!token) return res.status(400).send({ status: false, msg: "token is not present in header" })
 
-        // console.log(token)
+        //console.log(token)
 
         let decodeToken = jwt.verify(token, "Ronaldo-007")
         if (decodeToken) {
             req.decodeToken = decodeToken
-            console.log(req.decodeToken)
+            //console.log(req.decodeToken)
             next()
 
         } else {
@@ -32,19 +32,25 @@ let authenticate = async function (req, res, next) {
 const authorise = async function (req, res, next) {
     try {
         let blogId = req.params.blogId
+        if (blogId) {
+            let check = await blogModel.findById(blogId) // we can add isdeleted check here
+            if (check) {
+                //console.log(check)
 
-        let check = await blogModel.findById(blogId) // we can add isdeleted check here
-        if (check) {
-            //console.log(check)
 
+                if (req.decodeToken.userId != check.authorId) return res.status(403).send({ status: false, msg: "you are trying to change someone else profile" })
+                req.blogId = blogId
+                next()
 
-            if (req.decodeToken.userId != check.authorId) return res.status(403).send({ status: false, msg: "you are trying to change someone else profile" })
-            req.blogId = blogId
-            next()
+            } else {
+                return res.status(404).send({ status: false, msg: "blog you want to access does not exist in the system" })
+            }
 
         } else {
-            return res.status(404).send({ status: false, msg: "blog you want to access does not exist in the system" })
+            return res.status(404).send({ status: false, msg: "pls provide blogid which you want to access" })
         }
+
+
 
 
     } catch (err) {
