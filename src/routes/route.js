@@ -30,6 +30,6 @@ router.delete("/delete/blogs/:blogId", authMiddleware.authenticate, authMiddlewa
 
 router.delete("/delete/blogs" , authMiddleware.authenticate,  blogController.deletecertainBlog)
 
-router.post("/login", blogController.userLogin)
+router.post("/login", authorController.userLogin)
 
 module.exports = router;
